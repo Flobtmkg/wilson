@@ -1,0 +1,64 @@
+https://www.w3schools.com/jsref/dom_obj_style.asp
+Const joueur1 = {
+
+	jouerEtape1: function(param1, param2){
+		
+		return 3>5;
+	},
+	enervé: true;
+
+};
+
+Const joueur2 = {
+
+	jouerEtape1: function(param1, param2){
+		return 3>5;
+	},
+	enervé: true;
+
+};
+
+Const joueur3 = {
+
+	jouerEtape1: function(param1, param2){
+		return 3>5;
+	},
+	enervé: true;
+
+};
+
+
+function moteur(){
+	cont joueurs = [joueur1, joueur2, ….];
+
+	// Lance les dés
+	etape1();
+
+	// Placement des tuiles
+	etape2();
+
+	// Mouvement de tuiles
+	etape3();
+	
+	// On compte les points
+	etape4();
+}
+
+
+function etape2(){
+	// fait des trucs	
+	for (var i = 0 ; i<3 ; i++){
+		console.log("étape2 : valeur de i : " + i);
+		joueurs[i].jouerEtape1(param1, param2));
+		if(joueur1.enervé){
+			// do stuff
+		}
+	}
+}
+
+
+function bougerTuile(idTuile){
+	elementHtml = document.getElementById(idTuile);
+	elementHtml.
+}
+
