@@ -1,362 +1,467 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Plateau tectonique</title>
-<style>
-:root{
-  --size:500px;
-  --ring-radius:200px;
-  --rack-gap:-130px;
-  --tile-w:15px;
-  --tile-h:50px;
-  --stack-slot:20px;
-  --bg:#0b1020;
-  --board:radial-gradient(circle at 50% 50%, #233253 0 48%, #1a2540 48% 100%);
-  --lith:#ffe08a;
-  --lith-border:#a67c00;
-  --grid:rgba(255,255,255,0.08);
-  --dorsale-color:#3db3ff;
-  --fosse-color:#f45d5d;
-}
-
-body{
-  margin:0;
-  min-height:100vh;
-  display:grid;
-  place-items:center;
-  background:linear-gradient(0deg, var(--bg), #0a0f1c 40%, #0b1324);
-  color:#e9eef7;
-  font-family: system-ui, sans-serif;
-}
-
-.board{
-  position:relative;
-  width:var(--size);
-  height:var(--size);
-  border-radius:50%;
-  background: var(--board);
-  box-shadow:0 0 0 2px rgba(255,255,255,.06) inset,
-             0 12px 40px rgba(0,0,0,.45),
-             0 0 120px rgba(62,140,255,.08) inset;
-}
-
-.board::before{
-  content:"";
-  position:absolute; inset:0;
-  border-radius:50%;
-  background: repeating-conic-gradient(
-    from 0deg,
-    transparent 0 17.8deg,
-    var(--grid) 17.8deg 18deg
-  );
-}
-
-.polar{
-  position:absolute;
-  left:50%; top:50%;
-  transform-origin:0 0;
-}
-
-.lith{
-  width:var(--tile-w);
-  height:var(--tile-h);
-  margin:0;
-  background:linear-gradient(#fff5bf, var(--lith));
-  border:2px solid var(--lith-border);
-  border-radius:6px;
-  box-shadow:0 4px 10px rgba(0,0,0,.35);
-  display:grid; place-items:center;
-  cursor:pointer;
-  transform: rotate(var(--angle)) translateY(calc(-1 * var(--ring-radius))) rotate(90deg);
-}
-
-.lith-label{
-  font-size:10px; color:#3a2d00; font-weight:bold;
-  text-shadow:0 1px 0 rgba(255,255,255,.5);
-  pointer-events:none;
-}
-
-.cc{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  align-items:center;
-  margin:0;
-  transform: rotate(var(--angle)) translateY(calc(-1 * (var(--ring-radius) - var(--rack-gap))));
-}
-
-.slot{
-  width:var(--stack-slot);
-  height:var(--stack-slot);
-  border-radius:4px;
-  background:#cfd6e6;
-  border:1px solid #aab7d1;
-  box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 5px rgba(0,0,0,.25);
-}
-
-.p1-active { background:red; border-color:red; }
-.p2-active { background:blue; border-color:blue; }
-
-.marker{
-  position:absolute;
-  width:6px;
-  height:50px;
-  top:50%;
-  left:50%;
-  transform-origin:50% 100%;
-  border-radius:3px;
-}
-
-.marker-label{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform-origin:50% 100%;
-  font-size:12px;
-  color:white;
-  font-weight:bold;
-}
-</style>
-</head>
-<body>
-<div class="board" id="board"></div>
-<div id="controls" style="position:fixed;bottom:20px;left:20px;"></div>
-<div id="log" style="position:fixed;top:10px;right:10px;width:350px;max-height:90vh;overflow-y:auto;background:white;border:2px solid black;padding:10px;font-family:monospace;font-size:14px;color:#000000;"></div>
-
-<script>
-// =========================
-// PLATEAU
-// =========================
-const board = document.getElementById("board");
-const N = 20;
-for(let i=0;i<N;i++){
-  const angle = i*360/N;
-  // Lith
-  const lith = document.createElement('div');
-  lith.className='polar lith';
-  lith.style.setProperty('--angle',angle+'deg');
-  const label = document.createElement('div');
-  label.className='lith-label';
-  label.textContent = i+1;
-  lith.appendChild(label);
-  board.appendChild(lith);
-  // CC
-  const cc = document.createElement('div');
-  cc.className='polar cc';
-  cc.style.setProperty('--angle',angle+'deg');
-  for(let k=0;k<5;k++){
-    const slot = document.createElement('div');
-    slot.className='slot';
-    cc.appendChild(slot);
-  }
-  board.appendChild(cc);
-}
-const ccs = Array.from(document.querySelectorAll(".cc"));
-const slotsByCC = ccs.map(c => Array.from(c.querySelectorAll(".slot")));
-
-// =========================
-// DORSALES/FOSSES
-// =========================
-const dorsales = [
-  { name: "D1", pos: 0 },
-  { name: "D2", pos: 180 }
-];
-const fosses = [
-  { name: "F1", pos: 90 },
-  { name: "F2", pos: 270 }
-];
-
-function createMarker(item, color) {
-  const mark = document.createElement("div");
-  mark.className = "polar marker";
-  mark.style.width = "6px";
-  mark.style.height = "50px";
-  mark.style.background = color;
-  mark.style.transformOrigin = "50% 100%";
-  mark.style.transform = `rotate(${item.pos}deg) translateY(-200px)`;
-  board.appendChild(mark);
-
-  const lbl = document.createElement("div");
-  lbl.className = "polar marker-label";
-  lbl.style.transform = `rotate(${item.pos}deg) translateY(-250px) rotate(${-item.pos}deg)`; 
-  lbl.textContent = item.name;
-  board.appendChild(lbl);
-}
-dorsales.forEach(d => createMarker(d, "var(--dorsale-color)"));
-fosses.forEach(f => createMarker(f, "var(--fosse-color)"));
-
-// =========================
-// PARAMÈTRES
-// =========================
-const players = [
-  { name:"Joueur 1", ccClass:"p1-active"},
-  { name:"Joueur 2", ccClass:"p2-active"}
-];
-let currentPlayer = 0;
-const diceOptions = [
-  { value:0, dir:"aucun" },
-  { value:1, dir:"horaire" },
-  { value:1, dir:"anti-horaire" },
-  { value:2, dir:"horaire" },
-  { value:2, dir:"anti-horaire" },
-  { value:1, dir:"double" }
-];
-let phase = 0;
-let pendingSequences = [];
-
-// =========================
-// LOGS
-// =========================
-const logPanel=document.getElementById("log");
-function log(msg){ 
-  const p=document.createElement("div"); 
-  p.textContent=msg; 
-  logPanel.appendChild(p); 
-  logPanel.scrollTop=logPanel.scrollHeight;
-}
-function displayCCState(){
-  let s="Etat des CC:";
-  slotsByCC.forEach((slots,i)=>{
-    s+="\nCC "+(i+1)+":";
-    slots.forEach(sl=>{
-      if(sl.classList.contains("p1-active")) s+="R";
-      else if(sl.classList.contains("p2-active")) s+="B";
-      else s+=".";
-    });
-  });
-  log(s);
-}
-
-// =========================
-// FONCTIONS JEU
-// =========================
-function randomInt(max){ return Math.floor(Math.random()*max); }
-function rollDice(){ return diceOptions[randomInt(diceOptions.length)]; }
-function activateRandomSlot(player){
-  const ccIdx = randomInt(ccs.length);
-  const slots = slotsByCC[ccIdx];
-  for(let k = slots.length - 1; k >= 0; k--){ 
-    if(!slots[k].classList.contains("p1-active") && !slots[k].classList.contains("p2-active")){
-      slots[k].classList.add(player.ccClass);
-      break;
-    }
-  }
-}
-function getAdjacentCCs(fosse){
-  const step=360/ccs.length; 
-  const idx=Math.round(fosse.pos/step)%ccs.length;
-  const left=(idx-1+ccs.length)%ccs.length;
-  const right=(idx+1)%ccs.length;
-  return [left,right];
-}
-function rotateArc(startPos,endPos,direction){
-  const step=360/ccs.length;
-  const startIdx=Math.round(startPos/step)%ccs.length;
-  const endIdx=Math.round(endPos/step)%ccs.length;
-  let indices=[];
-  if(direction==="horaire"){ for(let i=startIdx;i!==endIdx;i=(i+1)%ccs.length){ indices.push(i); } }
-  else { for(let i=startIdx;i!==endIdx;i=(i-1+ccs.length)%ccs.length){ indices.push(i); } }
-  const contents=indices.map(i=>slotsByCC[i].map(s=>s.className));
-  if(direction==="horaire"){contents.unshift(contents.pop());} else{contents.push(contents.shift());}
-  indices.forEach((idx,i)=>{ slotsByCC[idx].forEach((s,k)=>{ s.className=contents[i][k]; }); });
-}
-
-// =========================
-// PHASES
-// =========================
-function phase1(){ 
-  log("=== Phase 1 : Panaches mantelliques ===");
-  players.forEach(p=>{ 
-    activateRandomSlot(p); 
-    activateRandomSlot(p); 
-    log(`${p.name} active 2 slots`);
-  });
-  displayCCState();
-}
-
-function phase2(){ 
-  log("=== Phase 2 : Vitesses des dorsales ===");
-  dorsales.forEach(d=>{ 
-    d.dice = rollDice();
-    log(`${d.name}: valeur=${d.dice.value}, dir=${d.dice.dir}`); 
-  });
-  displayCCState();
-}
-
-function phase3(){
-  log("=== Phase 3 : Tectonique des plaques ===");
-  pendingSequences = [];
-  dorsales.forEach((d,i)=>{
-    const dice = d.dice;
-    if(dice.value===0) { log(`${d.name}: aucun mouvement`); return; }
-
-    let rotations = dice.value;
-    let directions = [];
-    if(dice.dir==="double") directions = ["horaire","anti-horaire"];
-    else directions = [dice.dir];
-
-    directions.forEach(dir=>{
-      for(let r=1; r<=rotations; r++){
-        pendingSequences.push({d:d, fossesIndex:i, direction:dir, step:r});
+  <head>
+    <meta charset="UTF-8" />
+    <title>Plateau tectonique</title>
+    <style>
+      :root {
+        --size: 500px;
+        --ring-radius: 200px;
+        --rack-gap: -130px;
+        --tile-w: 15px;
+        --tile-h: 50px;
+        --stack-slot: 20px;
+        --bg: #0b1020;
+        --board: radial-gradient(
+          circle at 50% 50%,
+          #233253 0 48%,
+          #1a2540 48% 100%
+        );
+        --lith: #ffe08a;
+        --lith-border: #a67c00;
+        --grid: rgba(255, 255, 255, 0.08);
+        --dorsale-color: #3db3ff;
+        --fosse-color: #f45d5d;
       }
-    });
-  });
-  runNextSequence();
-}
 
-function runNextSequence(){
-  if(pendingSequences.length===0) return;
-  const seq = pendingSequences.shift();
-  const targetFosse = fosses[seq.fossesIndex];
-  const [left,right] = getAdjacentCCs(targetFosse);
-  const leftHas = slotsByCC[left].some(s=>s.classList.contains(players[currentPlayer].ccClass));
-  const rightHas = slotsByCC[right].some(s=>s.classList.contains(players[currentPlayer].ccClass));
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(0deg, var(--bg), #0a0f1c 40%, #0b1324);
+        color: #e9eef7;
+        font-family: system-ui, sans-serif;
+      }
 
-  if(!leftHas || !rightHas){
-    rotateArcBetween(seq.d, targetFosse, seq.direction);
-    log(`Rotation ${seq.step} (${seq.direction}) entre ${seq.d.name} et ${targetFosse.name} - pas de slot à retirer`);
-    return;
-  }
+      .board {
+        position: relative;
+        width: var(--size);
+        height: var(--size);
+        border-radius: 50%;
+        background: var(--board);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) inset,
+          0 12px 40px rgba(0, 0, 0, 0.45),
+          0 0 120px rgba(62, 140, 255, 0.08) inset;
+      }
 
-  while(true){
-    const leftSlot = slotsByCC[left].find(s => s.classList.contains(players[currentPlayer].ccClass));
-    const rightSlot = slotsByCC[right].find(s => s.classList.contains(players[currentPlayer].ccClass));
-    if(leftSlot && rightSlot){
-      leftSlot.classList.remove(players[currentPlayer].ccClass);
-      rightSlot.classList.remove(players[currentPlayer].ccClass);
-    } else break;
-  }
+      .board::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: repeating-conic-gradient(
+          from 0deg,
+          transparent 0 17.8deg,
+          var(--grid) 17.8deg 18deg
+        );
+      }
 
-  rotateArcBetween(seq.d, targetFosse, seq.direction);
-  log(`Rotation ${seq.step} (${seq.direction}) effectuée entre ${seq.d.name} et ${targetFosse.name}`);
-  displayCCState();
-}
+      .polar {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform-origin: 0 0;
+      }
 
-// Rotation entre dorsale et fosse
-function rotateArcBetween(dorsale, fosse, dir){
-  const startPos = dorsale.pos;
-  const endPos = fosse.pos;
-  rotateArc(startPos, endPos, dir);
-}
+      .lith {
+        width: var(--tile-w);
+        height: var(--tile-h);
+        margin: 0;
+        background: linear-gradient(#fff5bf, var(--lith));
+        border: 2px solid var(--lith-border);
+        border-radius: 6px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transform: rotate(var(--angle))
+          translateY(calc(-1 * var(--ring-radius))) rotate(var(--rotation));
+      }
 
-// =========================
-// BOUTON PHASE SUIVANTE
-// =========================
-const controls=document.getElementById("controls");
-const btn=document.createElement("button"); 
-btn.textContent="Phase suivante"; 
-btn.onclick=()=>{ 
-  if(pendingSequences.length>0){ runNextSequence(); } 
-  else { 
-    if(phase===0) phase1(); 
-    else if(phase===1) phase2(); 
-    else if(phase===2) { phase3(); phase=-1; currentPlayer=(currentPlayer+1)%players.length; log(`=== Fin du tour. Prochain joueur: ${players[currentPlayer].name} ===`); } 
-    phase++; 
-  }
-};
-controls.appendChild(btn);
+      .lith-label {
+        font-size: 10px;
+        color: #3a2d00;
+        font-weight: bold;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+        pointer-events: none;
+      }
 
-</script>
-</body>
+      .cc {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        margin: 0;
+        transform: rotate(var(--angle))
+          translateY(calc(-1 * (var(--ring-radius) - var(--rack-gap))));
+      }
+
+      .slot {
+        width: var(--stack-slot);
+        height: var(--stack-slot);
+        border-radius: 4px;
+        background: #cfd6e6;
+        border: 1px solid #aab7d1;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset,
+          0 2px 5px rgba(0, 0, 0, 0.25);
+      }
+
+      .p1-active {
+        background: red;
+        border-color: red;
+      }
+
+      .p2-active {
+        background: blue;
+        border-color: blue;
+      }
+
+      .marker {
+        position: absolute;
+        width: 6px;
+        height: 50px;
+        top: 50%;
+        left: 50%;
+        transform-origin: 50% 100%;
+        border-radius: 3px;
+      }
+
+      .marker-label {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: 50% 100%;
+        font-size: 12px;
+        color: white;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="board" id="board"></div>
+    <div id="controls" style="position: fixed; bottom: 20px; left: 20px"></div>
+    <div
+      id="log"
+      style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 350px;
+        max-height: 90vh;
+        overflow-y: auto;
+        background: white;
+        border: 2px solid black;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        color: #000000;
+      "
+    ></div>
+
+    <script>
+      // =========================
+      // PLATEAU
+      // =========================
+      const board = document.getElementById('board');
+      const N = 20;
+      const offset = 6;
+      for (let i = 0; i < N; i++) {
+        const angle = (i * 360) / N + offset;
+        // Lith
+        const lith = document.createElement('div');
+        lith.className = 'polar lith';
+        lith.style.setProperty('--angle', (angle + ( N / 2 + 1 )) + 'deg');
+        lith.style.setProperty('--rotation', 80 + 'deg');
+        const label = document.createElement('div');
+        label.className = 'lith-label';
+        label.textContent = i + 1;
+        lith.appendChild(label);
+        board.appendChild(lith);
+        // CC
+        const cc = document.createElement('div');
+        cc.className = 'polar cc';
+        cc.style.setProperty('--angle', angle + 'deg');
+        cc.id=i+1;
+        for (let k = 0; k < 5; k++) {
+          const slot = document.createElement('div');
+          slot.className = 'slot';
+          slot.id = `${i+1}${k+1}`
+          cc.appendChild(slot);
+        }
+        board.appendChild(cc);
+      }
+      const ccs = Array.from(document.querySelectorAll('.cc'));
+      const slotsByCC = ccs.map(c => Array.from(c.querySelectorAll('.slot')));
+
+      // =========================
+      // DORSALES/FOSSES
+      // =========================
+      const dorsales = [
+        { name: 'D1', pos: 0, leftOffset: -4, topOffset: -48},
+        { name: 'D2', pos: 180, leftOffset: -3, topOffset: -350}
+      ]
+      const fosses = [
+        { name: 'F1', pos: 90, leftOffset: -153, topOffset: -200},
+        { name: 'F2', pos: 270, leftOffset: 148, topOffset: -200}
+      ]
+
+      function createMarker(item, color) {
+        const mark = document.createElement('div')
+        mark.className = 'polar marker'
+        mark.style.width = '6px'
+        mark.style.marginLeft = item.leftOffset + 'px'
+        mark.style.marginTop = item.topOffset + 'px'
+        mark.style.height = '200px'
+        mark.style.background = color
+        mark.style.transformOrigin = '50% 100%'
+        mark.style.transform = `rotate(${item.pos}deg) translateY(-200px)`
+        board.appendChild(mark)
+
+        const lbl = document.createElement('div')
+        lbl.className = 'polar marker-label'
+        lbl.style.transform = `rotate(${item.pos}deg) translateY(-270px) rotate(${-item.pos}deg)`
+        lbl.textContent = item.name
+        board.appendChild(lbl)
+      }
+      dorsales.forEach(d => createMarker(d, 'var(--dorsale-color)'))
+      fosses.forEach(f => createMarker(f, 'var(--fosse-color)'))
+
+      // =========================
+      // PARAMÈTRES
+      // =========================
+      const players = [
+        { name: 'Joueur 1', ccClass: 'p1-active' },
+        { name: 'Joueur 2', ccClass: 'p2-active' }
+      ]
+      let currentPlayer = 0
+      const diceOptions = [
+        { value: 0, dir: 'aucun' },
+        { value: 1, dir: 'horaire' },
+        { value: 1, dir: 'anti-horaire' },
+        { value: 2, dir: 'horaire' },
+        { value: 2, dir: 'anti-horaire' },
+        { value: 1, dir: 'double' }
+      ]
+      let phase = 0
+      let pendingSequences = []
+
+      // =========================
+      // LOGS
+      // =========================
+      const logPanel = document.getElementById('log')
+      function log(msg) {
+        const p = document.createElement('div')
+        p.textContent = msg
+        logPanel.appendChild(p)
+        logPanel.scrollTop = logPanel.scrollHeight
+      }
+      function displayCCState() {
+        let s = 'Etat des CC:'
+        slotsByCC.forEach((slots, i) => {
+          s += '\nCC ' + (i + 1) + ':'
+          slots.forEach(sl => {
+            if (sl.classList.contains('p1-active')) s += 'R'
+            else if (sl.classList.contains('p2-active')) s += 'B'
+            else s += '.'
+          })
+        })
+        log(s)
+      }
+
+      // =========================
+      // FONCTIONS JEU
+      // =========================
+      function randomInt(max) {
+        return Math.floor(Math.random() * max)
+      }
+      function rollDice() {
+        return diceOptions[randomInt(diceOptions.length)]
+      }
+      function activateRandomSlot(player) {
+        const ccIdx = randomInt(ccs.length)
+        const slots = slotsByCC[ccIdx]
+        for (let k = slots.length - 1; k >= 0; k--) {
+          if (
+            !slots[k].classList.contains('p1-active') &&
+            !slots[k].classList.contains('p2-active')
+          ) {
+            slots[k].classList.add(player.ccClass)
+            break
+          }
+        }
+      }
+      function getAdjacentCCs(fosse) {
+        console.log("fosse :" + JSON.stringify(fosse));
+        const step = 360 / ccs.length;
+        const idx = Math.round(fosse.pos / step) % ccs.length;
+        const left = (idx + ccs.length) % ccs.length;
+        const right = (idx + 1) % ccs.length;
+        console.log("Avant la fosse " + fosse.name + " : " + left);
+        console.log("Après la fosse " + fosse.name + " : " + right);
+        return [left, right];
+      }
+      function rotateArc(startPos, endPos, direction) {
+        const step = 360 / ccs.length
+        const startIdx = Math.round(startPos / step) % ccs.length
+        const endIdx = Math.round(endPos / step) % ccs.length
+        console.log("startIdx " + startIdx + ", endIdx " + endIdx);
+        let indices = []
+        if (direction === 'horaire') {
+          for (let i = startIdx; i !== endIdx; i = (i + 1) % ccs.length) {
+            indices.push(i)
+          }
+        } else {
+          for (let i = startIdx; i !== endIdx; i = (i - 1 + ccs.length) % ccs.length) {
+            indices.push(i)
+          }
+        }
+        const contents = indices.map(i => slotsByCC[i].map(s => s.className))
+        if (direction === 'horaire') {
+          contents.unshift(contents.pop())
+        } else {
+          contents.push(contents.shift())
+        }
+        indices.forEach((idx, i) => {
+          slotsByCC[idx].forEach((s, k) => {
+            console.log("Mouvement sur ID : " + s.id);
+            s.className = contents[i][k]
+          })
+        })
+      }
+
+      // =========================
+      // PHASES
+      // =========================
+      function phase1() {
+        log('=== Phase 1 : Panaches mantelliques ===')
+        players.forEach(p => {
+          activateRandomSlot(p)
+          activateRandomSlot(p)
+          log(`${p.name} active 2 slots`)
+        })
+        displayCCState()
+      }
+
+      function phase2() {
+        log('=== Phase 2 : Vitesses des dorsales ===')
+        dorsales.forEach(d => {
+          d.dice = rollDice()
+          log(`${d.name}: valeur=${d.dice.value}, dir=${d.dice.dir}`)
+        })
+        displayCCState()
+      }
+
+      function phase3() {
+        log('=== Phase 3 : Tectonique des plaques ===')
+        pendingSequences = []
+        dorsales.forEach((d, i) => {
+          const dice = d.dice
+          if (dice.value === 0) {
+            log(`${d.name}: aucun mouvement`)
+            return
+          }
+
+          let rotations = dice.value
+          let directions = []
+          if (dice.dir === 'double') {
+            // double directions ??
+            directions = ['horaire', 'anti-horaire']
+          } else {
+            directions = [dice.dir]
+          }
+          directions.forEach(dir => {
+            const sequence = {
+              d: d,
+              // horaire c'est le même indice fosse que dorsale anti-horaire c'est indice 1 pour 0 et 0 pour 1
+              // c'est de la merde cette notation et c'est pas flexible
+              fossesIndex: dir === 'horaire' ? i : i === 0 ? 1 : 0,
+              direction: dir,
+              step: rotations
+            };
+            pendingSequences.push(sequence);
+            log(`sequence: { ${sequence.d.name}, ${sequence.fossesIndex}, ${sequence.direction}, ${sequence.step}}`)
+          })
+        })
+        runNextSequence()
+      }
+
+      function runNextSequence() {
+        if (pendingSequences.length === 0) {
+          return;
+        }
+        pendingSequences.forEach(seq => {
+          for(let currentStep = 0; currentStep < seq.step; currentStep++){ 
+            console.log("Sequence " + seq.d.name + " start step");
+            const targetFosse = fosses[seq.fossesIndex];
+            const [left, right] = getAdjacentCCs(targetFosse);
+            const leftHas = slotsByCC[left].some(s =>
+              s.classList.contains(players[currentPlayer].ccClass)
+            )
+            const rightHas = slotsByCC[right].some(s =>
+              s.classList.contains(players[currentPlayer].ccClass)
+            )
+
+            if (!leftHas || !rightHas) {
+              rotateArcBetween(seq.d, targetFosse, seq.direction);
+              log(`Rotation ${seq.step} (${seq.direction}) entre ${seq.d.name} et ${targetFosse.name} - pas de slot à retirer`);
+            } else {
+              let removeSlotPending = true;
+              while (removeSlotPending) {
+                const leftSlot = slotsByCC[left].find(s =>
+                  s.classList.contains(players[currentPlayer].ccClass)
+                )
+                const rightSlot = slotsByCC[right].find(s =>
+                  s.classList.contains(players[currentPlayer].ccClass)
+                )
+                if (leftSlot && rightSlot) {
+                  leftSlot.classList.remove(players[currentPlayer].ccClass);
+                  rightSlot.classList.remove(players[currentPlayer].ccClass);
+                } else {
+                  removeSlotPending = false;
+                }
+              }
+              rotateArcBetween(seq.d, targetFosse, seq.direction);
+              log(`Rotation ${seq.step} (${seq.direction}) effectuée entre ${seq.d.name} et ${targetFosse.name}`);
+            }
+          };
+        });
+        pendingSequences = [];
+        displayCCState();
+      }
+
+      // Rotation entre dorsale et fosse
+      function rotateArcBetween(dorsale, fosse, dir) {
+        const startPos = dorsale.pos
+        const endPos = fosse.pos
+        rotateArc(startPos, endPos, dir)
+      }
+
+      // =========================
+      // BOUTON PHASE SUIVANTE
+      // =========================
+      const controls = document.getElementById('controls')
+      const btn = document.createElement('button')
+      btn.textContent = 'Phase suivante'
+      btn.onclick = () => {
+        if (pendingSequences.length > 0) {
+          runNextSequence()
+        } else {
+          if (phase === 0) phase1()
+          else if (phase === 1) phase2()
+          else if (phase === 2) {
+            phase3()
+            phase = -1
+            currentPlayer = (currentPlayer + 1) % players.length
+            log(
+              `=== Fin du tour. Prochain joueur: ${players[currentPlayer].name} ===`
+            )
+          }
+          phase++
+        }
+      }
+      controls.appendChild(btn)
+    </script>
+  </body>
 </html>
